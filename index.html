@@ -412,14 +412,15 @@
   </header>
 
   <div class="tabs">
-    <div class="tab active" data-period="month">Este mês</div>
+    <div class="tab active" data-period="hoje">Hoje</div>
+    <div class="tab" data-period="7dias">7 dias</div>
     <div class="tab" data-period="15dias">15 dias</div>
-    <div class="tab" data-period="all">Tudo</div>
+    <div class="tab" data-period="mes">Final do mês</div>
   </div>
 
   <div class="summary-card">
     <div class="summary-top">
-      <div class="label" id="summaryLabel">Total do mês</div>
+      <div class="label" id="summaryLabel">Total de hoje</div>
       <div class="total" id="summaryTotal">R$ 0,00</div>
     </div>
     <div class="summary-body">
@@ -498,7 +499,7 @@ const PAYMENT_METHODS = {
 };
 
 let expenses = [];
-let period = "month";
+let period = "hoje";
 let pendingDeleteId = null;
 
 const el = (id) => document.getElementById(id);
@@ -550,13 +551,24 @@ function saveExpenses(){
 }
 
 function filteredExpenses(){
-  if(period === 'all') return expenses;
+  const now = new Date();
+  if(period === 'hoje'){
+    return expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.toDateString() === now.toDateString();
+    });
+  }
+  if(period === '7dias'){
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+    return expenses.filter(e => new Date(e.date) >= cutoff);
+  }
   if(period === '15dias'){
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 15);
     return expenses.filter(e => new Date(e.date) >= cutoff);
   }
-  const now = new Date();
+  // 'mes' — relatório completo do mês atual
   return expenses.filter(e => {
     const d = new Date(e.date);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
@@ -571,7 +583,7 @@ function render(){
 }
 
 function renderSummary(list){
-  const labels = { month: 'Total do mês', '15dias': 'Total (15 dias)', all: 'Total geral' };
+  const labels = { hoje: 'Total de hoje', '7dias': 'Total (7 dias)', '15dias': 'Total (15 dias)', mes: 'Total do mês (relatório final)' };
   summaryLabel.textContent = labels[period] || 'Total';
   const total = list.reduce((s,e) => s + e.amount, 0);
   summaryTotal.textContent = fmt(total);
@@ -940,4 +952,3 @@ loadExpenses();
 </script>
 </body>
 </html>
-  
