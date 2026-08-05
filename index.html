@@ -776,17 +776,42 @@ function detectPayment(lower){
   return "Não informado";
 }
 
+function extractAmount(lower){
+  // "25 reais e 50 centavos" / "25 e 50 centavos"
+  let m = lower.match(/(\d{1,4})(?:\s*reais)?\s*e\s*(\d{1,2})\s*centavos?/);
+  if(m){
+    const whole = parseInt(m[1], 10);
+    const cents = parseInt(m[2], 10);
+    return { value: whole + cents/100, matchedText: m[0] };
+  }
+  // "25,50" ou "25.50" (vírgula/ponto decimal já escritos)
+  m = lower.match(/(?:r\$\s*)?(\d{1,6}[.,]\d{1,2})/);
+  if(m){
+    return { value: parseFloat(m[1].replace(',', '.')), matchedText: m[0] };
+  }
+  // "25 e 50" (fala transcrita sem vírgula nem a palavra "centavos")
+  m = lower.match(/(\d{1,4})\s+e\s+(\d{1,2})\b/);
+  if(m){
+    const whole = parseInt(m[1], 10);
+    const cents = parseInt(m[2], 10);
+    return { value: whole + cents/100, matchedText: m[0] };
+  }
+  // valor inteiro simples: "25 reais", "25"
+  m = lower.match(/(?:r\$\s*)?(\d{1,6})/);
+  if(m){
+    return { value: parseFloat(m[1]), matchedText: m[0] };
+  }
+  return null;
+}
+
 function parseExpense(text){
   const lower = text.toLowerCase();
 
-  const amountMatch = lower.match(/(?:r\$\s*)?(\d{1,6}(?:[.,]\d{1,2})?)\s*(?:reais)?/);
-  if(!amountMatch){
+  const amountResult = extractAmount(lower);
+  if(!amountResult || isNaN(amountResult.value) || amountResult.value <= 0){
     return { is_expense: false };
   }
-  const amount = parseFloat(amountMatch[1].replace(',', '.'));
-  if(isNaN(amount) || amount <= 0){
-    return { is_expense: false };
-  }
+  const amount = amountResult.value;
 
   let category = 'Outros';
   outer:
@@ -803,10 +828,10 @@ function parseExpense(text){
 
   let desc = text
     .replace(/gastei|paguei|comprei|gasto de|gasto com|foi/gi, '')
-    .replace(amountMatch[0], '')
-    .replace(/reais|r\$/gi, '')
+    .replace(new RegExp(amountResult.matchedText, 'i'), '')
+    .replace(/centavos?|reais|r\$/gi, '')
     .replace(/no débito|no debito|no crédito|no credito|em dinheiro|à vista|a vista/gi, '')
-    .replace(/^\s*(no|na|em|de|do|da|com)\s+/i, '')
+    .replace(/^\s*(no|na|em|de|do|da|com|e)\s+/i, '')
     .trim();
   if(!desc) desc = category;
   desc = desc.charAt(0).toUpperCase() + desc.slice(1);
