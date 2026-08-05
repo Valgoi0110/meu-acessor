@@ -440,7 +440,7 @@
 
 <div class="compose">
   <div class="compose-inner">
-    <input id="input" type="text" placeholder="ex: gastei 2,50 no posto no débito" autocomplete="off" />
+    <input id="input" type="text" placeholder="ex: 14 reais e 35 centavos no lanche" autocomplete="off" />
     <button class="mic-btn" id="micBtn" type="button" aria-label="Falar gasto">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
     </button>
@@ -789,17 +789,31 @@ function extractAmount(lower){
   if(m){
     return { value: parseFloat(m[1].replace(',', '.')), matchedText: m[0] };
   }
-  // "25 e 50" (fala transcrita sem vírgula nem a palavra "centavos")
+  // "25 e 50" (dois números com "e" entre eles, sem a palavra "centavos")
   m = lower.match(/(\d{1,4})\s+e\s+(\d{1,2})\b/);
   if(m){
     const whole = parseInt(m[1], 10);
     const cents = parseInt(m[2], 10);
     return { value: whole + cents/100, matchedText: m[0] };
   }
-  // valor inteiro simples: "25 reais", "25"
-  m = lower.match(/(?:r\$\s*)?(\d{1,6})/);
+  // "500 reais" — número seguido explicitamente da palavra "reais", sem "e...centavos" depois:
+  // mantém como valor inteiro (protege valores redondos tipo 500, 1500)
+  m = lower.match(/(\d{1,6})\s*reais\b/);
   if(m){
     return { value: parseFloat(m[1]), matchedText: m[0] };
+  }
+  // número solto, sem nenhuma palavra de apoio — provavelmente a fala juntou os números
+  // (ex: "14 e 35" virou "1435"). Se tiver 3+ dígitos e não terminar em "00",
+  // assume que os 2 últimos dígitos são os centavos.
+  m = lower.match(/(?:r\$\s*)?(\d{1,6})/);
+  if(m){
+    const digits = m[1];
+    if(digits.length >= 3 && !digits.endsWith('00')){
+      const whole = digits.slice(0, -2);
+      const cents = digits.slice(-2);
+      return { value: parseInt(whole, 10) + parseInt(cents, 10)/100, matchedText: m[0] };
+    }
+    return { value: parseFloat(digits), matchedText: m[0] };
   }
   return null;
 }
