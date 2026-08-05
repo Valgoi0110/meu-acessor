@@ -852,13 +852,15 @@ function parseExpense(text){
 
   const payment = detectPayment(lower);
 
-  let desc = text
+    let desc = text
     .replace(/gastei|paguei|comprei|gasto de|gasto com|foi/gi, '')
-    .replace(new RegExp(amountResult.matchedText, 'i'), '')
+    .replace(/\d+(?:[.,]\d+)?/g, '')
     .replace(/centavos?|reais|r\$/gi, '')
-    .replace(/no débito|no debito|no crédito|no credito|em dinheiro|à vista|a vista/gi, '')
-    .replace(/^\s*(no|na|em|de|do|da|com|e)\s+/i, '')
+    .replace(/débito|debito|crédito|credito|dinheiro|espécie|especie|cash|à vista|a vista/gi, '')
+    .replace(/\b(no|na|em|de|do|da|com|e)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
+
   if(!desc) desc = category;
   desc = desc.charAt(0).toUpperCase() + desc.slice(1);
   if(desc.length > 40) desc = desc.slice(0, 40).trim();
