@@ -303,9 +303,27 @@
     transition: transform .2s ease;
   }
   .modal-backdrop.show .modal{ transform: translateY(0); }
-  .modal .m-desc{ font-family:'Fraunces', serif; font-size: 18px; margin-bottom: 2px;}
-  .modal .m-cat{ font-size: 13px; color: var(--ink-soft); margin-bottom: 18px; }
-  .modal .m-amount{ font-family:'IBM Plex Mono', monospace; font-size: 24px; font-weight: 600; margin-bottom: 18px;}
+  .m-field{ margin-bottom: 14px; }
+  .m-field label{
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .m-field input, .m-field select{
+    width: 100%;
+    padding: 11px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--paper-line);
+    background: var(--paper);
+    font-size: 15px;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    outline: none;
+  }
+  .m-field input:focus, .m-field select:focus{ border-color: var(--emerald); }
   .modal button{
     width: 100%;
     padding: 13px;
@@ -316,6 +334,7 @@
     cursor: pointer;
     margin-bottom: 8px;
   }
+  .m-save{ background: var(--emerald); color: white; }
   .m-delete{ background: #F7E8E4; color: var(--rust); }
   .m-cancel{ background: var(--paper-alt); color: var(--ink-soft); }
 </style>
@@ -331,6 +350,7 @@
 
   <div class="tabs">
     <div class="tab active" data-period="month">Este mês</div>
+    <div class="tab" data-period="15dias">15 dias</div>
     <div class="tab" data-period="all">Tudo</div>
   </div>
 
@@ -358,9 +378,19 @@
 
 <div class="modal-backdrop" id="modalBackdrop">
   <div class="modal">
-    <div class="m-desc" id="mDesc"></div>
-    <div class="m-cat" id="mCat"></div>
-    <div class="m-amount" id="mAmount"></div>
+    <div class="m-field">
+      <label>Descrição</label>
+      <input type="text" id="mDescInput" />
+    </div>
+    <div class="m-field">
+      <label>Valor</label>
+      <input type="text" inputmode="decimal" id="mAmountInput" />
+    </div>
+    <div class="m-field">
+      <label>Categoria</label>
+      <select id="mCatInput"></select>
+    </div>
+    <button class="m-save" id="mSave">Salvar alterações</button>
     <button class="m-delete" id="mDelete">Excluir lançamento</button>
     <button class="m-cancel" id="mCancel">Cancelar</button>
   </div>
@@ -423,6 +453,11 @@ function saveExpenses(){
 
 function filteredExpenses(){
   if(period === 'all') return expenses;
+  if(period === '15dias'){
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 15);
+    return expenses.filter(e => new Date(e.date) >= cutoff);
+  }
   const now = new Date();
   return expenses.filter(e => {
     const d = new Date(e.date);
@@ -437,7 +472,8 @@ function render(){
 }
 
 function renderSummary(list){
-  summaryLabel.textContent = period === 'all' ? 'Total geral' : 'Total do mês';
+  const labels = { month: 'Total do mês', '15dias': 'Total (15 dias)', all: 'Total geral' };
+  summaryLabel.textContent = labels[period] || 'Total';
   const total = list.reduce((s,e) => s + e.amount, 0);
   summaryTotal.textContent = fmt(total);
 
@@ -508,9 +544,15 @@ function openModal(id){
   const e = expenses.find(x => String(x.id) === String(id));
   if(!e) return;
   pendingDeleteId = e.id;
-  el('mDesc').textContent = e.description;
-  el('mCat').textContent = e.category;
-  el('mAmount').textContent = fmt(e.amount);
+
+  el('mDescInput').value = e.description;
+  el('mAmountInput').value = String(e.amount).replace('.', ',');
+
+  const select = el('mCatInput');
+  select.innerHTML = Object.keys(CATEGORIES).map(cat =>
+    `<option value="${cat}" ${cat === e.category ? 'selected' : ''}>${cat}</option>`
+  ).join('');
+
   el('modalBackdrop').classList.add('show');
 }
 
@@ -520,9 +562,34 @@ el('mCancel').addEventListener('click', () => {
 el('modalBackdrop').addEventListener('click', (ev) => {
   if(ev.target.id === 'modalBackdrop') el('modalBackdrop').classList.remove('show');
 });
-el('mDelete').addEventListener('click', async () => {
+
+el('mSave').addEventListener('click', () => {
+  const expense = expenses.find(x => x.id === pendingDeleteId);
+  if(!expense) return;
+
+  const desc = el('mDescInput').value.trim();
+  const amountRaw = el('mAmountInput').value.trim().replace(',', '.');
+  const amount = parseFloat(amountRaw);
+  const category = el('mCatInput').value;
+
+  if(!desc || isNaN(amount) || amount <= 0){
+    showToast('Preenche descrição e um valor válido.', true);
+    return;
+  }
+
+  expense.description = desc;
+  expense.amount = amount;
+  expense.category = category;
+
+  saveExpenses();
+  render();
+  el('modalBackdrop').classList.remove('show');
+  showToast('Lançamento atualizado.');
+});
+
+el('mDelete').addEventListener('click', () => {
   expenses = expenses.filter(e => e.id !== pendingDeleteId);
-  await saveExpenses();
+  saveExpenses();
   render();
   el('modalBackdrop').classList.remove('show');
   showToast('Lançamento excluído.');
