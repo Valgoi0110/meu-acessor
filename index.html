@@ -860,7 +860,6 @@ function parseExpense(text){
     .replace(/\b(no|na|em|de|do|da|com|e)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-
   if(!desc) desc = category;
   desc = desc.charAt(0).toUpperCase() + desc.slice(1);
   if(desc.length > 40) desc = desc.slice(0, 40).trim();
