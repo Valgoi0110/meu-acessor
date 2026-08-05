@@ -852,7 +852,7 @@ function parseExpense(text){
 
   const payment = detectPayment(lower);
 
-    let desc = text
+  let desc = text
     .replace(/gastei|paguei|comprei|gasto de|gasto com|foi/gi, '')
     .replace(/\d+(?:[.,]\d+)?/g, '')
     .replace(/centavos?|reais|r\$/gi, '')
